@@ -11,10 +11,10 @@ import lombok.NoArgsConstructor;
 import java.sql.Timestamp;
 
 @Entity
-@Table(name = "news_articles")
+@Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder
+@Table(name = "news_articles")
 public class NewsArticleEntity {
 
     @Id
