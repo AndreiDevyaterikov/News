@@ -14,3 +14,6 @@ spring:
     console:
       path: /h2-console
       enabled: true
+request:
+  url: https://api.spaceflightnewsapi.net
+  resource: /v3/articles
