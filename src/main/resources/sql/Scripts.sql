@@ -1,4 +1,4 @@
-create table if not exists news
+create table if not exists news_articles
 (
     id integer primary key,
     title varchar not null,
