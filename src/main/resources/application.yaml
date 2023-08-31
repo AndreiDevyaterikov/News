@@ -17,3 +17,6 @@ spring:
 request:
   url: https://api.spaceflightnewsapi.net
   resource: /v3/articles
+springdoc:
+  swagger-ui:
+    path: /news.html
