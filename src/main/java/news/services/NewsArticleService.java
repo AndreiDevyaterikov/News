@@ -8,4 +8,5 @@ public interface NewsArticleService {
     List<NewsArticleEntity> getAllNewsArticles();
     List<NewsArticleEntity> getNewsArticlesBySite(String newsSite);
     NewsArticleEntity getNewsArticleById(Integer id);
+    void saveAll(List<NewsArticleEntity> newsArticleEntities);
 }
