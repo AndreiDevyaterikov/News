@@ -20,8 +20,7 @@ public class RequestApiControllers {
 
     @GetMapping()
     public List<NewsArticleDto> getNewsArticles(@Nullable @RequestParam Integer limit,
-                                                @Nullable @RequestParam Integer start
-    ) {
+                                                @Nullable @RequestParam Integer start) {
         return requestService.getArticles(limit, start);
     }
 }

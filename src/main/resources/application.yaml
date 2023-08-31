@@ -20,3 +20,8 @@ request:
 springdoc:
   swagger-ui:
     path: /news.html
+blacknews:
+  words:
+    - dev
+    - test
+    - prod
