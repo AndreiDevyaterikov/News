@@ -20,8 +20,14 @@ request:
 springdoc:
   swagger-ui:
     path: /news.html
-blacknews:
+blacklist:
   words:
-    - dev
-    - test
-    - prod
+    - nasa
+threads-pool:
+  size: 4
+buffer-articles:
+  limit: 6
+total-articles:
+  limit: 10
+
+

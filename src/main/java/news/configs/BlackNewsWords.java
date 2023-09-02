@@ -11,7 +11,7 @@ import java.util.List;
 @Getter
 @Setter
 @Component
-@ConfigurationProperties(prefix = "blacknews")
+@ConfigurationProperties(prefix = "blacklist")
 public class BlackNewsWords {
     private List<String> words;
 }
