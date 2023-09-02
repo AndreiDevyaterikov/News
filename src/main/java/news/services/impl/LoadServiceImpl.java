@@ -71,7 +71,6 @@ public class LoadServiceImpl implements LoadService {
                 }
             });
         }
-        executorService.shutdown();
         return new ResponseDto(HttpStatus.CREATED, "News articles has been loaded");
     }
 
