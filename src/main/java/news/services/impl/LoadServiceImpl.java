@@ -3,21 +3,24 @@ package news.services.impl;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import news.configs.BlackNewsWords;
+import news.configs.LoaderConfig;
 import news.dto.NewsArticleDto;
 import news.dto.ResponseDto;
 import news.entities.NewsArticleEntity;
 import news.services.LoadService;
 import news.services.NewsArticleService;
 import news.services.RequestService;
-import org.springframework.beans.factory.annotation.Value;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.HttpStatus;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.concurrent.ExecutorService;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 
@@ -28,50 +31,75 @@ public class LoadServiceImpl implements LoadService {
 
     private final RequestService requestService;
     private final NewsArticleService newsArticleService;
-    private final ExecutorService executorService;
+
     private final BlackNewsWords blackNewsWords;
+    private final LoaderConfig loaderConfig;
     private final Map<String, List<NewsArticleDto>> bufferNewsArticles = new HashMap<>();
 
-    @Value("${threads-pool.size}")
-    private String threadPoolSize;
-
-    @Value("${buffer-articles.limit}")
-    private String bufferLimit;
+    @Qualifier("taskPoolConfig")
+    private final ThreadPoolTaskExecutor taskExecutor;
 
     @Override
     public ResponseDto saveNewsArticles(Integer limit, Integer start) {
 
-        for (int i = 0; i < Integer.parseInt(threadPoolSize); i++) {
+        var bufferLimit = loaderConfig.getBufferLimit();
 
-            executorService.execute(() -> {
+        AtomicInteger currentLimitDownload = new AtomicInteger(0);
+        AtomicInteger downloadLimit = new AtomicInteger(loaderConfig.getDownloadLimit());
 
-                var articles = requestService.getArticles(limit, start);
+        int threadCount = taskExecutor.getCorePoolSize();
+        CountDownLatch threadLatch = new CountDownLatch(threadCount);
 
-                var filteredAndGroupedArticles = filterAndGroupArticles(articles);
+        for (int indexThread = 0; indexThread < threadCount; indexThread++) {
+            taskExecutor.execute(() -> {
+                log.info("{} has been started", Thread.currentThread().getName());
+                try {
+                    var downloadedArticles = requestService.getArticles(limit, start);
 
-                for (Map.Entry<String, List<NewsArticleDto>> entry : filteredAndGroupedArticles.entrySet()) {
+                    currentLimitDownload.addAndGet(downloadedArticles.size());
 
-                    var newsSite = entry.getKey();
-                    var newsArticles = entry.getValue();
+                    var filteredArticles = filterAndGroupArticles(downloadedArticles);
+                    filteredArticles.forEach((newsSite, articles) -> {
+                        synchronized (bufferNewsArticles) {
+                            if (bufferNewsArticles.containsKey(newsSite)
+                                    && bufferNewsArticles.get(newsSite).size() >= bufferLimit) {
 
-                    synchronized (bufferNewsArticles) {
-                        if (bufferNewsArticles.containsKey(newsSite)
-                                && bufferNewsArticles.get(newsSite).size() >= Integer.parseInt(bufferLimit)) {
-
-                            var newArticlesEntity = mapToListEntity(newsArticles);
-
-                            newsArticleService.saveAll(newArticlesEntity);
-                            bufferNewsArticles.get(newsSite).clear();
+                                var newArticlesEntity = mapToListEntity(bufferNewsArticles.get(newsSite));
+                                newsArticleService.saveAll(newArticlesEntity);
+                                bufferNewsArticles.get(newsSite).clear();
+                            }
                         }
-                    }
-
-                    bufferNewsArticles.putIfAbsent(newsSite, new CopyOnWriteArrayList<>());
-                    bufferNewsArticles.get(newsSite).addAll(newsArticles);
-
+                        bufferNewsArticles.putIfAbsent(newsSite, new ArrayList<>());
+                        bufferNewsArticles.get(newsSite).addAll(articles);
+                    });
+                } finally {
+                    threadLatch.countDown(); // Уменьшаем счетчик на 1 при завершении каждого потока
+                    log.info("{} has been finished", Thread.currentThread().getName());
                 }
             });
         }
-        return new ResponseDto(HttpStatus.CREATED, "News articles has been loaded");
+
+        try {
+            threadLatch.await(); // Ждем, пока все потоки не завершатся
+            saveAndClearBufferNewsArticles();
+            return new ResponseDto(HttpStatus.CREATED, "News articles has been loaded");
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            log.error(e.getMessage());
+            return new ResponseDto(HttpStatus.INTERNAL_SERVER_ERROR, "Error occurred during news articles loading");
+        }
+    }
+
+    private void saveAndClearBufferNewsArticles() {
+        synchronized (bufferNewsArticles) {
+            for (Map.Entry<String, List<NewsArticleDto>> entry : bufferNewsArticles.entrySet()) {
+                var newsArticles = entry.getValue();
+                var newArticlesEntity = mapToListEntity(newsArticles);
+                newsArticleService.saveAll(newArticlesEntity);
+            }
+            bufferNewsArticles.clear();
+            log.info("Buffer has been cleared");
+        }
     }
 
     private Map<String, List<NewsArticleDto>> filterAndGroupArticles(List<NewsArticleDto> newsArticles) {

@@ -22,12 +22,11 @@ springdoc:
     path: /news.html
 blacklist:
   words:
-    - nasa
 threads-pool:
   size: 4
 buffer-articles:
-  limit: 6
+  limit: 1
 total-articles:
-  limit: 10
+  limit: 4
 
 
