@@ -1,0 +1,15 @@
+version: '3.8'
+services:
+  backend:
+    image: news:1.0.0
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8089:8089"
+    depends_on:
+      - h2database
+  h2database:
+      image: oscarfonts/h2
+      ports:
+        - "8090:8090"

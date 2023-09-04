@@ -14,6 +14,8 @@ spring:
     console:
       path: /h2-console
       enabled: true
+      settings:
+        web-allow-others: true
 request:
   url: https://api.spaceflightnewsapi.net
   resource: /v3/articles
@@ -28,5 +30,5 @@ buffer-articles:
   limit: 4        #Лимит размера буффера для статей с каждого сайта
 total-articles:
   limit: 16       #Общий лимит на скачивание статей
-
-
+server:
+  port: 8089
