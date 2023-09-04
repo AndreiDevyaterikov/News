@@ -21,3 +21,6 @@ buffer-articles:
 total-articles:
   limit: 16       #Общий лимит на скачивание статей
 ```
+
+## Run
+* Open localhost:8080/news.html
