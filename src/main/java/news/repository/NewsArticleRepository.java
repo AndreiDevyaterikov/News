@@ -8,5 +8,5 @@ import java.util.List;
 
 @Repository
 public interface NewsArticleRepository extends JpaRepository<NewsArticleEntity, Integer> {
-    List<NewsArticleEntity> findAllByNewsSite(String newsSite);
+    List<NewsArticleEntity> findAllByNewsSiteLikeIgnoreCase(String newsSite);
 }

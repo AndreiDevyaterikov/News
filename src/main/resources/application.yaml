@@ -21,12 +21,12 @@ springdoc:
   swagger-ui:
     path: /news.html
 blacklist:
-  words:
+  words:          #Настраиваемый черный список слов для заголовков статей. Указывать с новой строки через -, - word
 threads-pool:
-  size: 4
+  size: 4         #Количество используемых потоков для ThreadPoolTaskExecutor
 buffer-articles:
-  limit: 4
+  limit: 4        #Лимит размера буффера для статей с каждого сайта
 total-articles:
-  limit: 16
+  limit: 16       #Общий лимит на скачивание статей
 
 

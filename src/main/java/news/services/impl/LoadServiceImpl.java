@@ -44,7 +44,6 @@ public class LoadServiceImpl implements LoadService {
 
         var bufferLimit = loaderConfig.getBufferLimit();
 
-        AtomicInteger currentLimitDownload = new AtomicInteger(0);
         AtomicInteger downloadLimit = new AtomicInteger(loaderConfig.getDownloadLimit());
 
         int threadCount = taskExecutor.getCorePoolSize();
@@ -56,12 +55,9 @@ public class LoadServiceImpl implements LoadService {
                 try {
                     var downloadedArticles = requestService.getArticles(limit, start);
 
-                    currentLimitDownload.addAndGet(downloadedArticles.size());
-
                     synchronized (downloadLimit) {
                         if (downloadLimit.get() == 0) {
-                            log.info("{} interrupted. Reason: no available limit.",
-                                    Thread.currentThread().getName());
+                            log.info("{} interrupted. Reason: no available limit.", Thread.currentThread().getName());
                             Thread.currentThread().interrupt();
                             return;
                         } else {
@@ -116,11 +112,10 @@ public class LoadServiceImpl implements LoadService {
 
     private void saveAndClearBufferNewsArticles() {
         synchronized (bufferNewsArticles) {
-            for (Map.Entry<String, List<NewsArticleDto>> entry : bufferNewsArticles.entrySet()) {
-                var newsArticles = entry.getValue();
+            bufferNewsArticles.forEach((newsSite, newsArticles) -> {
                 var newArticlesEntity = mapToListEntity(newsArticles);
                 newsArticleService.saveAll(newArticlesEntity);
-            }
+            });
             bufferNewsArticles.clear();
             log.info("Buffer has been cleared");
         }

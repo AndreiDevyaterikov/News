@@ -8,7 +8,9 @@ import news.repository.NewsArticleRepository;
 import news.services.NewsArticleService;
 import org.springframework.stereotype.Service;
 
+import java.util.Comparator;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -24,7 +26,17 @@ public class NewsArticleServiceImpl implements NewsArticleService {
 
     @Override
     public List<NewsArticleEntity> getNewsArticlesBySite(String newsSite) {
-        return newsArticleRepository.findAllByNewsSite(newsSite);
+        var newsArticles = newsArticleRepository.findAllByNewsSiteLikeIgnoreCase("%" + newsSite + "%");
+        if (newsArticles.isEmpty()) {
+            var message = String.format("Not found articles by %s", newsSite);
+            log.warn(message);
+            throw new NotFoundNewsException(message);
+        } else {
+            newsArticles = newsArticles.stream()
+                    .sorted(Comparator.comparing(NewsArticleEntity::getNewsSite))
+                    .collect(Collectors.toList());
+            return newsArticles;
+        }
     }
 
     @Override
