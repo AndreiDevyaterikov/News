@@ -12,7 +12,7 @@
 * Build project
 * Set settings in application.yaml
 ```yaml
-  blacklist:
+blacklist:
   words:          #Настраиваемый черный список слов для заголовков статей. Указывать с новой строки через -, - word
 threads-pool:
   size: 4         #Количество используемых потоков для ThreadPoolTaskExecutor
