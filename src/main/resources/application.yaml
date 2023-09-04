@@ -25,8 +25,8 @@ blacklist:
 threads-pool:
   size: 4
 buffer-articles:
-  limit: 1
-total-articles:
   limit: 4
+total-articles:
+  limit: 16
 
 

@@ -58,14 +58,38 @@ public class LoadServiceImpl implements LoadService {
 
                     currentLimitDownload.addAndGet(downloadedArticles.size());
 
+                    synchronized (downloadLimit) {
+                        if (downloadLimit.get() == 0) {
+                            log.info("{} interrupted. Reason: no available limit.",
+                                    Thread.currentThread().getName());
+                            Thread.currentThread().interrupt();
+                            return;
+                        } else {
+                            if (downloadLimit.get() > downloadedArticles.size()) {
+                                downloadLimit.set(downloadLimit.get() - downloadedArticles.size());
+                            } else {
+                                downloadedArticles = downloadedArticles
+                                        .subList(0, downloadLimit.get())
+                                        .stream()
+                                        .toList();
+                                downloadLimit.set(0);
+                            }
+                        }
+                    }
+
                     var filteredArticles = filterAndGroupArticles(downloadedArticles);
                     filteredArticles.forEach((newsSite, articles) -> {
                         synchronized (bufferNewsArticles) {
                             if (bufferNewsArticles.containsKey(newsSite)
                                     && bufferNewsArticles.get(newsSite).size() >= bufferLimit) {
 
-                                var newArticlesEntity = mapToListEntity(bufferNewsArticles.get(newsSite));
+                                log.info("Buffer limit has been exceeded for site {}", newsSite);
+
+                                var newArticlesEntity = mapToListEntity(articles);
                                 newsArticleService.saveAll(newArticlesEntity);
+
+                                log.info("Saved all articles for site {}", newsSite);
+
                                 bufferNewsArticles.get(newsSite).clear();
                             }
                         }
@@ -73,14 +97,14 @@ public class LoadServiceImpl implements LoadService {
                         bufferNewsArticles.get(newsSite).addAll(articles);
                     });
                 } finally {
-                    threadLatch.countDown(); // Уменьшаем счетчик на 1 при завершении каждого потока
+                    threadLatch.countDown();
                     log.info("{} has been finished", Thread.currentThread().getName());
                 }
             });
         }
 
         try {
-            threadLatch.await(); // Ждем, пока все потоки не завершатся
+            threadLatch.await();
             saveAndClearBufferNewsArticles();
             return new ResponseDto(HttpStatus.CREATED, "News articles has been loaded");
         } catch (InterruptedException e) {
