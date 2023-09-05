@@ -29,11 +29,11 @@ public interface RequestApiController {
             @Parameter(
                     name = "_limit",
                     description = "Ограничение на скачивание новостных статей каждым потоком"
-            ) @Nullable @RequestParam Integer limit,
+            ) @Nullable @RequestParam(name = "_limit", defaultValue = "10") Integer limit,
             @Parameter(
                     name = "_start",
                     description = "Количество записей, которое нужно пропустить каждым потоком"
             )
-            @Nullable @RequestParam Integer start
+            @Nullable @RequestParam(name = "_start", defaultValue = "0") Integer start
     );
 }
