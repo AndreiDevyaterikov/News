@@ -1,6 +1,7 @@
 # News
 
 ## Technologies
+* H2 database
 * Spring boot
 * Maven 3.9.4 version [Download Maven](https://maven.apache.org/docs/3.9.4/release-notes.html)
 * Java 17 version
