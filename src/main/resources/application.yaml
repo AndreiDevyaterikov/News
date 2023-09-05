@@ -17,7 +17,7 @@ spring:
       settings:
         web-allow-others: true
 request:
-  url: https://api.spaceflightnewsapi.net
+  uri: https://api.spaceflightnewsapi.net
   resource: /v3/articles
 springdoc:
   swagger-ui:

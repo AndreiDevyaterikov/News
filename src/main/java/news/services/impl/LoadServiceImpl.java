@@ -14,6 +14,7 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.HttpStatus;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.HttpClientErrorException;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -92,6 +93,10 @@ public class LoadServiceImpl implements LoadService {
                         bufferNewsArticles.putIfAbsent(newsSite, new ArrayList<>());
                         bufferNewsArticles.get(newsSite).addAll(articles);
                     });
+                } catch (HttpClientErrorException e) {
+                    Thread.currentThread().interrupt();
+                    log.info("{} interrupted. Reason: error on request. Http status - {}",
+                            Thread.currentThread().getName(), e.getStatusCode());
                 } finally {
                     threadLatch.countDown();
                     log.info("{} has been finished", Thread.currentThread().getName());
