@@ -2,8 +2,8 @@ package news.services.impl;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import news.configs.BlackNewsWords;
-import news.configs.LoaderConfig;
+import news.config.BlackNewsWords;
+import news.config.LoaderConfig;
 import news.dto.NewsArticleDto;
 import news.dto.ResponseDto;
 import news.entities.NewsArticleEntity;
@@ -14,11 +14,14 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.HttpStatus;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.HttpClientErrorException;
 
-import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
@@ -34,7 +37,7 @@ public class LoadServiceImpl implements LoadService {
 
     private final BlackNewsWords blackNewsWords;
     private final LoaderConfig loaderConfig;
-    private final Map<String, List<NewsArticleDto>> bufferNewsArticles = new HashMap<>();
+    private final Map<String, List<NewsArticleDto>> bufferNewsArticles = new ConcurrentHashMap<>();
 
     @Qualifier("taskPoolConfig")
     private final ThreadPoolTaskExecutor taskExecutor;
@@ -46,14 +49,24 @@ public class LoadServiceImpl implements LoadService {
 
         AtomicInteger downloadLimit = new AtomicInteger(loaderConfig.getDownloadLimit());
 
+        AtomicInteger currentDownloadLimit = new AtomicInteger(0);
+
         int threadCount = taskExecutor.getCorePoolSize();
         CountDownLatch threadLatch = new CountDownLatch(threadCount);
 
+
         for (int indexThread = 0; indexThread < threadCount; indexThread++) {
+
+            int currentThreadStart = indexThread * limit + start;
+
             taskExecutor.execute(() -> {
+
                 log.info("{} has been started", Thread.currentThread().getName());
                 try {
-                    var downloadedArticles = requestService.getArticles(limit, start);
+
+                    var downloadedArticles = requestService.getArticles(limit, currentThreadStart);
+
+                    currentDownloadLimit.addAndGet(downloadedArticles.size());
 
                     synchronized (downloadLimit) {
                         if (downloadLimit.get() == 0) {
@@ -75,23 +88,36 @@ public class LoadServiceImpl implements LoadService {
 
                     var filteredArticles = filterAndGroupArticles(downloadedArticles);
                     filteredArticles.forEach((newsSite, articles) -> {
-                        synchronized (bufferNewsArticles) {
-                            if (bufferNewsArticles.containsKey(newsSite)
-                                    && bufferNewsArticles.get(newsSite).size() >= bufferLimit) {
 
-                                log.info("Buffer limit has been exceeded for site {}", newsSite);
+                        if (bufferNewsArticles.containsKey(newsSite)
+                                && bufferNewsArticles.get(newsSite).size() >= bufferLimit) {
 
-                                var newArticlesEntity = mapToListEntity(articles);
-                                newsArticleService.saveAll(newArticlesEntity);
+                            var uniqArticles = new HashSet<>(articles);
+                            uniqArticles.addAll(bufferNewsArticles.get(newsSite));
 
-                                log.info("Saved all articles for site {}", newsSite);
+                            uniqArticles.forEach(article -> {
 
-                                bufferNewsArticles.get(newsSite).clear();
-                            }
+                                var articleEntity = NewsArticleEntity.builder()
+                                        .id(article.getId())
+                                        .title(article.getTitle())
+                                        .newsSite(article.getNewsSite())
+                                        .article(article.getSummary())
+                                        .publishedDate(article.getPublishedAt())
+                                        .build();
+                                newsArticleService.save(articleEntity);
+
+                            });
+
+                            bufferNewsArticles.get(newsSite).clear();
+                        } else {
+                            bufferNewsArticles.putIfAbsent(newsSite, new CopyOnWriteArrayList<>());
+                            bufferNewsArticles.get(newsSite).addAll(articles);
                         }
-                        bufferNewsArticles.putIfAbsent(newsSite, new ArrayList<>());
-                        bufferNewsArticles.get(newsSite).addAll(articles);
                     });
+                } catch (HttpClientErrorException e) {
+                    Thread.currentThread().interrupt();
+                    log.info("{} interrupted. Reason: error on request. Http status - {}",
+                            Thread.currentThread().getName(), e.getStatusCode());
                 } finally {
                     threadLatch.countDown();
                     log.info("{} has been finished", Thread.currentThread().getName());
@@ -106,26 +132,30 @@ public class LoadServiceImpl implements LoadService {
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             log.error(e.getMessage());
-            return new ResponseDto(HttpStatus.INTERNAL_SERVER_ERROR, "Error occurred during news articles loading");
+            throw new RuntimeException("");
         }
     }
 
     private void saveAndClearBufferNewsArticles() {
-        synchronized (bufferNewsArticles) {
-            bufferNewsArticles.forEach((newsSite, newsArticles) -> {
-                var newArticlesEntity = mapToListEntity(newsArticles);
-                newsArticleService.saveAll(newArticlesEntity);
-            });
-            bufferNewsArticles.clear();
-            log.info("Buffer has been cleared");
-        }
+        bufferNewsArticles.forEach((newsSite, newsArticles) -> newsArticles.forEach(article -> {
+            var articleEntity = NewsArticleEntity.builder()
+                    .id(article.getId())
+                    .title(article.getTitle())
+                    .newsSite(article.getNewsSite())
+                    .article(article.getSummary())
+                    .publishedDate(article.getPublishedAt())
+                    .build();
+            newsArticleService.save(articleEntity);
+        }));
+        bufferNewsArticles.clear();
+        log.info("Buffer has been cleared");
     }
 
     private Map<String, List<NewsArticleDto>> filterAndGroupArticles(List<NewsArticleDto> newsArticles) {
         return newsArticles
                 .stream()
                 .filter(article -> !haveBlackWord(article.getTitle()))
-                .sorted((a1, a2) -> a2.getPublishedAt().compareTo(a1.getPublishedAt()))
+                .sorted(Comparator.comparing(NewsArticleDto::getPublishedAt))
                 .collect(Collectors.groupingBy(NewsArticleDto::getNewsSite));
     }
 
@@ -136,18 +166,5 @@ public class LoadServiceImpl implements LoadService {
             }
         }
         return false;
-    }
-
-    private List<NewsArticleEntity> mapToListEntity(List<NewsArticleDto> newsArticlesDto) {
-        return newsArticlesDto
-                .stream()
-                .map(newsArticle -> NewsArticleEntity.builder()
-                        .id(newsArticle.getId())
-                        .title(newsArticle.getTitle())
-                        .article(newsArticle.getSummary())
-                        .newsSite(newsArticle.getNewsSite())
-                        .publishedDate(newsArticle.getPublishedAt())
-                        .build())
-                .toList();
     }
 }

@@ -17,7 +17,7 @@ spring:
       settings:
         web-allow-others: true
 request:
-  url: https://api.spaceflightnewsapi.net
+  uri: https://api.spaceflightnewsapi.net
   resource: /v3/articles
 springdoc:
   swagger-ui:
@@ -27,8 +27,8 @@ blacklist:
 threads-pool:
   size: 4         #Количество используемых потоков для ThreadPoolTaskExecutor
 buffer-articles:
-  limit: 4        #Лимит размера буффера для статей с каждого сайта
+  limit: 5        #Лимит размера буффера для статей с каждого сайта
 total-articles:
-  limit: 16       #Общий лимит на скачивание статей
+  limit: 500       #Общий лимит на скачивание статей
 server:
   port: 8089

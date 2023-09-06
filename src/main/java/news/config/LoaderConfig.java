@@ -1,4 +1,4 @@
-package news.configs;
+package news.config;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
@@ -7,23 +7,23 @@ import org.springframework.context.annotation.Configuration;
 public class LoaderConfig {
 
     @Value("${buffer-articles.limit}")
-    private String bufferLimit;
+    private Integer bufferLimit;
 
     @Value("${total-articles.limit}")
-    private String downloadLimit;
+    private Integer downloadLimit;
 
     @Value("${threads-pool.size}")
-    private String threadPoolSize;
+    private Integer threadPoolSize;
 
     public Integer getBufferLimit() {
-        return Integer.parseInt(bufferLimit);
+        return bufferLimit;
     }
 
     public Integer getDownloadLimit() {
-        return Integer.parseInt(downloadLimit);
+        return downloadLimit;
     }
 
     public Integer getThreadPoolSize() {
-        return Integer.parseInt(threadPoolSize);
+        return threadPoolSize;
     }
 }
