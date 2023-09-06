@@ -1,4 +1,4 @@
-package news.configs;
+package news.config;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;

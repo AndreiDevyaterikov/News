@@ -1,4 +1,4 @@
-package news.configs;
+package news.config;
 
 
 import org.springframework.beans.factory.annotation.Value;

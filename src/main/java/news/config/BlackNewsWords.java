@@ -1,4 +1,4 @@
-package news.configs;
+package news.config;
 
 import lombok.Getter;
 import lombok.Setter;

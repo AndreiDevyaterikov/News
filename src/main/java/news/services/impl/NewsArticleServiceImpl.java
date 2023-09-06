@@ -49,7 +49,7 @@ public class NewsArticleServiceImpl implements NewsArticleService {
     }
 
     @Override
-    public void saveAll(List<NewsArticleEntity> newsArticleEntities) {
-        newsArticleRepository.saveAll(newsArticleEntities);
+    public void save(NewsArticleEntity newsArticleEntity) {
+        newsArticleRepository.save(newsArticleEntity);
     }
 }
